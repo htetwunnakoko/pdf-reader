@@ -22,6 +22,9 @@
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js";
     }
   </script>
+
+  <!-- JSZip: Rename Mode မှာ renamed images တွေကို ZIP ထုတ်ရန် -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 
 <body>
@@ -30,6 +33,7 @@
   <input id="imageInputSecond" type="file" accept="image/*" multiple hidden />
   <input id="pdfInput" type="file" accept="application/pdf" hidden />
   <input id="pdfInputSecond" type="file" accept="application/pdf" hidden />
+  <input id="renameImageInput" type="file" accept="image/*" multiple hidden />
 
   <div id="readerMenu" class="reader-menu">
     <header class="topbar">
@@ -51,6 +55,14 @@
       <div class="mode-switch" aria-label="Reader Mode">
         <button id="imageModeBtn" class="mode-btn active" type="button">Image Mode</button>
         <button id="pdfModeBtn" class="mode-btn" type="button">PDF Mode</button>
+        <button id="renameModeBtn" class="mode-btn" type="button">Rename Mode</button>
+      </div>
+
+      <div id="renameToolbarControl" class="rename-control hidden-control">
+        <label for="renameStartInput">Start</label>
+        <input id="renameStartInput" type="number" min="1" max="300" value="1" />
+        <span id="renameRangeText">001</span>
+        <button id="downloadZipBtn" type="button">Download ZIP</button>
       </div>
 
       <button id="fitWidthBtn" type="button">Fit Width</button>
@@ -99,6 +111,19 @@
             <label id="choosePdfBtn" class="big-upload-btn secondary-upload-btn" for="pdfInputSecond">
               Choose PDF
             </label>
+
+            <label id="chooseRenameImagesBtn" class="big-upload-btn" for="renameImageInput">
+              Choose Images
+            </label>
+          </div>
+
+          <div id="renameSettingCard" class="rename-setting-card">
+            <label for="renameStartInputSecond">Start Number</label>
+            <div class="rename-start-row">
+              <input id="renameStartInputSecond" type="number" min="1" max="300" value="1" />
+              <span>001 - 300</span>
+            </div>
+            <p id="renameHelpText">Example: start 1 → 001.jpg, 002.jpg, 003.jpg</p>
           </div>
 
           <small id="dropHint">Drag & Drop လုပ်လည်းရပါတယ်</small>

@@ -4,6 +4,7 @@ const imageInput = document.getElementById("imageInput");
 const imageInputSecond = document.getElementById("imageInputSecond");
 const pdfInput = document.getElementById("pdfInput");
 const pdfInputSecond = document.getElementById("pdfInputSecond");
+const renameImageInput = document.getElementById("renameImageInput");
 
 const pdfViewer = document.getElementById("pdfViewer");
 const emptyState = document.getElementById("emptyState");
@@ -15,8 +16,16 @@ const modeSubtitle = document.getElementById("modeSubtitle");
 
 const imageModeBtn = document.getElementById("imageModeBtn");
 const pdfModeBtn = document.getElementById("pdfModeBtn");
+const renameModeBtn = document.getElementById("renameModeBtn");
 const chooseImagesBtn = document.getElementById("chooseImagesBtn");
 const choosePdfBtn = document.getElementById("choosePdfBtn");
+const chooseRenameImagesBtn = document.getElementById("chooseRenameImagesBtn");
+const renameSettingCard = document.getElementById("renameSettingCard");
+const renameStartInput = document.getElementById("renameStartInput");
+const renameStartInputSecond = document.getElementById("renameStartInputSecond");
+const renameRangeText = document.getElementById("renameRangeText");
+const renameToolbarControl = document.getElementById("renameToolbarControl");
+const downloadZipBtn = document.getElementById("downloadZipBtn");
 const emptyTitle = document.getElementById("emptyTitle");
 const emptyDescription = document.getElementById("emptyDescription");
 const dropHint = document.getElementById("dropHint");
@@ -45,7 +54,7 @@ const panelBackdrop = document.getElementById("panelBackdrop");
 const closePanelBtn = document.getElementById("closePanelBtn");
 const pageList = document.getElementById("pageList");
 
-let readerMode = "image"; // image | pdf
+let readerMode = "image"; // image | pdf | rename
 let currentZoom = 100;
 let viewerObjectUrls = [];
 let thumbObjectUrls = [];
@@ -74,6 +83,84 @@ function naturalSortFiles(files) {
       sensitivity: "base"
     });
   });
+}
+
+function isImageFile(file) {
+  return Boolean(file && file.type.startsWith("image/"));
+}
+
+function padImageNumber(number) {
+  return String(number).padStart(3, "0");
+}
+
+function getFileExtension(file) {
+  const name = file?.name || "";
+  const dotIndex = name.lastIndexOf(".");
+
+  if (dotIndex === -1 || dotIndex === name.length - 1) {
+    return ".jpg";
+  }
+
+  return name.slice(dotIndex).toLowerCase();
+}
+
+function getRenameStartNumber() {
+  const rawValue = Number(renameStartInput.value || renameStartInputSecond.value || 1);
+
+  if (!Number.isFinite(rawValue)) {
+    return 1;
+  }
+
+  return Math.min(300, Math.max(1, Math.floor(rawValue)));
+}
+
+function setRenameStartNumber(value) {
+  const safeValue = Math.min(300, Math.max(1, Math.floor(Number(value) || 1)));
+
+  renameStartInput.value = safeValue;
+  renameStartInputSecond.value = safeValue;
+  updateRenameRangeText();
+
+  if (readerMode === "rename" && currentFiles.length) {
+    renderRenamePreview();
+  }
+}
+
+function getRenamedFileName(file, index) {
+  const startNumber = getRenameStartNumber();
+  const nextNumber = startNumber + index;
+  return `${padImageNumber(nextNumber)}${getFileExtension(file)}`;
+}
+
+function getRenameEndNumber() {
+  if (!currentFiles.length) {
+    return getRenameStartNumber();
+  }
+
+  return getRenameStartNumber() + currentFiles.length - 1;
+}
+
+function updateRenameRangeText() {
+  const startNumber = getRenameStartNumber();
+  const endNumber = getRenameEndNumber();
+
+  renameRangeText.textContent = currentFiles.length
+    ? `${padImageNumber(startNumber)} → ${padImageNumber(endNumber)}`
+    : padImageNumber(startNumber);
+}
+
+function isRenameRangeValid(showAlert = false) {
+  const endNumber = getRenameEndNumber();
+
+  if (endNumber > 300) {
+    if (showAlert) {
+      alert(`Start number နဲ့ image count မကိုက်ပါ။ နောက်ဆုံး number က ${endNumber} ဖြစ်နေပါတယ်။ 300 အထိပဲခွင့်ပြုထားပါတယ်။`);
+    }
+
+    return false;
+  }
+
+  return true;
 }
 
 function clearViewerObjectUrls() {
@@ -116,6 +203,16 @@ function updateFileInfo() {
     }
 
     fileInfo.textContent = "No PDF";
+    return;
+  }
+
+  if (readerMode === "rename") {
+    if (!currentFiles.length) {
+      fileInfo.textContent = "No rename images";
+      return;
+    }
+
+    fileInfo.textContent = `${currentFiles.length} image(s) ready`;
     return;
   }
 
@@ -164,9 +261,18 @@ function getActivePageIndex() {
 
 function updateReadingProgress() {
   if (!currentFiles.length) {
-    currentPageText.textContent = "Page 0 / 0";
+    currentPageText.textContent = readerMode === "rename" ? "Rename 0" : "Page 0 / 0";
     progressFill.style.width = "0%";
     updateJumpInputLimit();
+    updateRenameRangeText();
+    return;
+  }
+
+  if (readerMode === "rename") {
+    currentPageText.textContent = `Rename ${currentFiles.length} image(s)`;
+    progressFill.style.width = isRenameRangeValid(false) ? "100%" : "0%";
+    updateJumpInputLimit();
+    updateRenameRangeText();
     return;
   }
 
@@ -243,39 +349,70 @@ function deactivateReaderMode() {
 
 function syncModeUI() {
   const isImageMode = readerMode === "image";
+  const isPdfMode = readerMode === "pdf";
+  const isRenameMode = readerMode === "rename";
 
   document.body.classList.toggle("image-mode", isImageMode);
-  document.body.classList.toggle("pdf-mode", !isImageMode);
+  document.body.classList.toggle("pdf-mode", isPdfMode);
+  document.body.classList.toggle("rename-mode", isRenameMode);
 
   imageModeBtn.classList.toggle("active", isImageMode);
-  pdfModeBtn.classList.toggle("active", !isImageMode);
+  pdfModeBtn.classList.toggle("active", isPdfMode);
+  renameModeBtn.classList.toggle("active", isRenameMode);
 
-  topUploadText.textContent = isImageMode ? "Upload Images" : "Upload PDF";
+  topUploadText.textContent = isImageMode
+    ? "Upload Images"
+    : isPdfMode
+      ? "Upload PDF"
+      : "Upload Rename Images";
+
   modeSubtitle.textContent = isImageMode
     ? "Image continuous PDF view"
-    : "PDF file continuous reader";
+    : isPdfMode
+      ? "PDF file continuous reader"
+      : "Natural sort and rename images to ZIP";
 
   emptyTitle.textContent = isImageMode
     ? "ပုံတွေ Upload လုပ်ပါ"
-    : "PDF File Upload လုပ်ပါ";
+    : isPdfMode
+      ? "PDF File Upload လုပ်ပါ"
+      : "Rename လုပ်မယ့် Image တွေ Upload လုပ်ပါ";
 
   emptyDescription.textContent = isImageMode
     ? "Image တွေကို upload လုပ်လိုက်တာနဲ့ filename အလိုက် natural sorting နဲ့စီပြီး PDF reader ပုံစံ continuous view ပြပါမယ်။"
-    : "PDF file တစ်ခု upload လုပ်လိုက်တာနဲ့ page တွေကို continuous reader ပုံစံ render လုပ်ပြီး ဖတ်နိုင်ပါမယ်။";
+    : isPdfMode
+      ? "PDF file တစ်ခု upload လုပ်လိုက်တာနဲ့ page တွေကို continuous reader ပုံစံ render လုပ်ပြီး ဖတ်နိုင်ပါမယ်။"
+      : "Image တွေ upload လုပ်ပြီး natural sorting နဲ့စီမယ်။ Start number ကို 001 ကနေ 300 အတွင်းသတ်မှတ်ပြီး renamed ZIP file ထုတ်နိုင်ပါမယ်။";
 
   dropHint.textContent = isImageMode
     ? "Image files တွေကို Drag & Drop လုပ်လည်းရပါတယ်"
-    : "PDF file ကို Drag & Drop လုပ်လည်းရပါတယ်";
+    : isPdfMode
+      ? "PDF file ကို Drag & Drop လုပ်လည်းရပါတယ်"
+      : "Image files တွေကို Drag & Drop လုပ်လည်းရပါတယ်";
 
   chooseImagesBtn.style.display = isImageMode ? "inline-flex" : "none";
-  choosePdfBtn.style.display = isImageMode ? "none" : "inline-flex";
+  choosePdfBtn.style.display = isPdfMode ? "inline-flex" : "none";
+  chooseRenameImagesBtn.style.display = isRenameMode ? "inline-flex" : "none";
+
+  renameToolbarControl.classList.toggle("hidden-control", !isRenameMode);
+  downloadPdfBtn.classList.toggle("hidden-control", isRenameMode);
+  renameSettingCard.style.display = isRenameMode ? "block" : "none";
 
   pageManagerBtn.disabled = !isImageMode;
+  fitWidthBtn.disabled = isRenameMode;
+  zoomInBtn.disabled = isRenameMode;
+  zoomOutBtn.disabled = isRenameMode;
+  fullscreenBtn.disabled = isRenameMode;
+  pageJumpInput.disabled = isRenameMode;
+  goPageBtn.disabled = isRenameMode;
+  downloadZipBtn.disabled = !(isRenameMode && currentFiles.length && isRenameRangeValid(false));
+
   updateFileInfo();
+  updateRenameRangeText();
 }
 
 function setReaderMode(mode, shouldClear = true) {
-  if (mode !== "image" && mode !== "pdf") return;
+  if (mode !== "image" && mode !== "pdf" && mode !== "rename") return;
 
   readerMode = mode;
 
@@ -301,6 +438,7 @@ function clearReaderOnly(keepMode = true) {
   imageInputSecond.value = "";
   pdfInput.value = "";
   pdfInputSecond.value = "";
+  renameImageInput.value = "";
 
   emptyState.style.display = "grid";
   resetFitWidth();
@@ -520,6 +658,10 @@ function renderAll(keepZoom = false) {
     renderPageList();
   }
 
+  if (readerMode === "rename") {
+    renderRenamePreview();
+  }
+
   updateFileInfo();
   updateReadingProgress();
   activateReaderMode();
@@ -536,6 +678,101 @@ function renderImages(files) {
   setReaderMode("image", false);
   clearReaderOnly(false);
   readerMode = "image";
+  syncModeUI();
+
+  currentFiles = naturalSortFiles(imageFiles);
+  renderAll(false);
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+  });
+}
+
+
+function renderRenamePreview() {
+  pdfViewer.innerHTML = "";
+  clearViewerObjectUrls();
+
+  const preview = document.createElement("div");
+  preview.className = "rename-preview";
+
+  const startNumber = getRenameStartNumber();
+  const endNumber = getRenameEndNumber();
+
+  const summary = document.createElement("div");
+  summary.className = "rename-summary";
+  summary.innerHTML = `
+    <h3>Rename Preview</h3>
+    <p>${currentFiles.length} image(s) • Natural sorted • Output: ${padImageNumber(startNumber)} → ${padImageNumber(endNumber)}</p>
+  `;
+  preview.appendChild(summary);
+
+  if (!isRenameRangeValid(false)) {
+    const warning = document.createElement("div");
+    warning.className = "rename-warning";
+    warning.textContent = `နောက်ဆုံး image number က ${endNumber} ဖြစ်နေပါတယ်။ 300 အထိပဲခွင့်ပြုထားတာကြောင့် start number ကိုလျှော့ပါ သို့မဟုတ် image count ကိုလျှော့ပါ။`;
+    preview.appendChild(warning);
+  }
+
+  const list = document.createElement("div");
+  list.className = "rename-list";
+
+  currentFiles.forEach((file, index) => {
+    const url = URL.createObjectURL(file);
+    viewerObjectUrls.push(url);
+
+    const item = document.createElement("div");
+    item.className = "rename-item";
+
+    const thumb = document.createElement("div");
+    thumb.className = "rename-thumb";
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = file.name;
+
+    thumb.appendChild(img);
+
+    const oldName = document.createElement("div");
+    oldName.className = "rename-name-block";
+    oldName.innerHTML = `<strong>Original</strong><span>${file.name}</span>`;
+
+    const arrow = document.createElement("div");
+    arrow.className = "rename-arrow";
+    arrow.textContent = "→";
+
+    const newName = document.createElement("div");
+    newName.className = "rename-name-block rename-new-name";
+    newName.innerHTML = `<strong>New</strong><span>${getRenamedFileName(file, index)}</span>`;
+
+    item.appendChild(thumb);
+    item.appendChild(oldName);
+    item.appendChild(arrow);
+    item.appendChild(newName);
+
+    list.appendChild(item);
+  });
+
+  preview.appendChild(list);
+  pdfViewer.appendChild(preview);
+
+  updateFileInfo();
+  updateReadingProgress();
+  syncModeUI();
+}
+
+function renderRenameImages(files) {
+  const imageFiles = [...files].filter(isImageFile);
+
+  if (!imageFiles.length) {
+    alert("Rename Mode မှာ image file တွေပဲ upload လုပ်ပါ။");
+    return;
+  }
+
+  setReaderMode("rename", false);
+  clearReaderOnly(false);
+  readerMode = "rename";
   syncModeUI();
 
   currentFiles = naturalSortFiles(imageFiles);
@@ -654,9 +891,15 @@ async function renderPdfFile(file) {
 function openModeInput() {
   if (readerMode === "image") {
     imageInput.click();
-  } else {
-    pdfInput.click();
+    return;
   }
+
+  if (readerMode === "pdf") {
+    pdfInput.click();
+    return;
+  }
+
+  renameImageInput.click();
 }
 
 topUploadBtn.addEventListener("click", openModeInput);
@@ -667,6 +910,10 @@ imageModeBtn.addEventListener("click", () => {
 
 pdfModeBtn.addEventListener("click", () => {
   setReaderMode("pdf", true);
+});
+
+renameModeBtn.addEventListener("click", () => {
+  setReaderMode("rename", true);
 });
 
 imageInput.addEventListener("change", (event) => {
@@ -683,6 +930,18 @@ pdfInput.addEventListener("change", (event) => {
 
 pdfInputSecond.addEventListener("change", (event) => {
   renderPdfFile(event.target.files[0]);
+});
+
+renameImageInput.addEventListener("change", (event) => {
+  renderRenameImages(event.target.files);
+});
+
+renameStartInput.addEventListener("input", (event) => {
+  setRenameStartNumber(event.target.value);
+});
+
+renameStartInputSecond.addEventListener("input", (event) => {
+  setRenameStartNumber(event.target.value);
 });
 
 dropZone.addEventListener("dragover", (event) => {
@@ -713,6 +972,16 @@ dropZone.addEventListener("drop", (event) => {
     return;
   }
 
+  if (readerMode === "rename") {
+    if (!imageFiles.length) {
+      alert("Rename Mode မှာ image file တွေပဲ upload လုပ်ပါ။");
+      return;
+    }
+
+    renderRenameImages(imageFiles);
+    return;
+  }
+
   if (readerMode === "image") {
     if (imageFiles.length) {
       renderImages(imageFiles);
@@ -729,8 +998,8 @@ dropZone.addEventListener("drop", (event) => {
 });
 
 function openPagePanel() {
-  if (readerMode === "pdf") {
-    alert("PDF Mode မှာ page reorder မလုပ်ထားပါ။ Image Mode မှာပဲ Pages ကိုသုံးပါ။");
+  if (readerMode === "pdf" || readerMode === "rename") {
+    alert("Pages panel ကို Image Mode မှာပဲသုံးပါ။");
     return;
   }
 
@@ -754,6 +1023,11 @@ closePanelBtn.addEventListener("click", closePagePanel);
 panelBackdrop.addEventListener("click", closePagePanel);
 
 async function toggleFullscreen() {
+  if (readerMode === "rename") {
+    alert("Rename Mode မှာ Full Screen မလိုအပ်ပါ။ ZIP download ကိုသုံးပါ။");
+    return;
+  }
+
   if (!isReaderActive()) {
     alert(readerMode === "pdf" ? "ပထမဆုံး PDF upload လုပ်ပါ။" : "ပထမဆုံး image upload လုပ်ပါ။");
     return;
@@ -889,6 +1163,12 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (readerMode === "rename") {
+    if (event.key === "Escape") hideMenu();
+    if (event.key.toLowerCase() === "m") showMenu(true);
+    return;
+  }
+
   if (event.key === "Escape") {
     if (isPanelOpen()) {
       closePagePanel();
@@ -1002,7 +1282,77 @@ function downloadOriginalPdf() {
   URL.revokeObjectURL(url);
 }
 
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+async function downloadRenamedZip() {
+  if (readerMode !== "rename") return;
+
+  if (!currentFiles.length) {
+    alert("ပထမဆုံး rename လုပ်မယ့် image တွေ upload လုပ်ပါ။");
+    return;
+  }
+
+  if (!isRenameRangeValid(true)) {
+    return;
+  }
+
+  if (!window.JSZip) {
+    alert("JSZip မ load ဖြစ်ပါ။ Internet connection/CDN ကိုစစ်ပါ။");
+    return;
+  }
+
+  try {
+    showMenu(false);
+    showLoading("Creating ZIP...");
+
+    const zip = new JSZip();
+
+    currentFiles.forEach((file, index) => {
+      zip.file(getRenamedFileName(file, index), file);
+    });
+
+    const blob = await zip.generateAsync(
+      {
+        type: "blob",
+        compression: "STORE"
+      },
+      (metadata) => {
+        loadingText.textContent = `Creating ZIP... ${Math.round(metadata.percent)}%`;
+      }
+    );
+
+    const startNumber = getRenameStartNumber();
+    const endNumber = getRenameEndNumber();
+    downloadBlob(blob, `renamed-images-${padImageNumber(startNumber)}-${padImageNumber(endNumber)}.zip`);
+  } catch (error) {
+    console.error(error);
+    alert("ZIP ထုတ်ရာမှာ error ဖြစ်သွားပါတယ်။");
+  } finally {
+    hideLoading();
+    showMenu(true);
+  }
+}
+
+downloadZipBtn.addEventListener("click", downloadRenamedZip);
+
 downloadPdfBtn.addEventListener("click", async () => {
+  if (readerMode === "rename") {
+    downloadRenamedZip();
+    return;
+  }
+
   if (readerMode === "pdf") {
     downloadOriginalPdf();
     return;
