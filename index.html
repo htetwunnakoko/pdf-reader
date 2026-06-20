@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="my">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Image / PDF Reader</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- jsPDF: image mode မှာ uploaded images တွေကို PDF ပြန်ထုတ်ရန် -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- SortableJS: image mode page reorder အတွက် -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+
+  <!-- PDF.js: PDF file reader mode အတွက် -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js";
+    }
+  </script>
+</head>
+
+<body>
+  <!-- Hidden file inputs -->
+  <input id="imageInput" type="file" accept="image/*" multiple hidden />
+  <input id="imageInputSecond" type="file" accept="image/*" multiple hidden />
+  <input id="pdfInput" type="file" accept="application/pdf" hidden />
+  <input id="pdfInputSecond" type="file" accept="application/pdf" hidden />
+
+  <div id="readerMenu" class="reader-menu">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">R</div>
+
+        <div>
+          <h1>Reader</h1>
+          <p id="modeSubtitle">Image continuous PDF view</p>
+        </div>
+      </div>
+
+      <button id="topUploadBtn" class="upload-btn" type="button">
+        <span id="topUploadText">Upload Images</span>
+      </button>
+    </header>
+
+    <section class="toolbar">
+      <div class="mode-switch" aria-label="Reader Mode">
+        <button id="imageModeBtn" class="mode-btn active" type="button">Image Mode</button>
+        <button id="pdfModeBtn" class="mode-btn" type="button">PDF Mode</button>
+      </div>
+
+      <button id="fitWidthBtn" type="button">Fit Width</button>
+      <button id="zoomInBtn" type="button">Zoom +</button>
+      <button id="zoomOutBtn" type="button">Zoom -</button>
+      <button id="pageManagerBtn" type="button">Pages</button>
+      <button id="fullscreenBtn" type="button">Full Screen</button>
+
+      <div class="jump-control">
+        <input id="pageJumpInput" type="number" min="1" placeholder="Page" />
+        <button id="goPageBtn" type="button">Go</button>
+      </div>
+
+      <button id="downloadPdfBtn" type="button">Download PDF</button>
+      <button id="clearBtn" class="danger-btn" type="button">Clear</button>
+
+      <div class="reading-indicator">
+        <span id="currentPageText">Page 0 / 0</span>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <span id="fileInfo" class="file-info">No images</span>
+    </section>
+  </div>
+
+  <main class="reader-wrap">
+    <div id="dropZone" class="drop-zone">
+      <div id="emptyState" class="empty-state">
+        <div class="upload-card">
+          <div class="upload-icon">+</div>
+
+          <h2 id="emptyTitle">ပုံတွေ Upload လုပ်ပါ</h2>
+
+          <p id="emptyDescription">
+            Image တွေကို upload လုပ်လိုက်တာနဲ့ filename အလိုက် natural sorting နဲ့စီပြီး
+            PDF reader ပုံစံ continuous view ပြပါမယ်။
+          </p>
+
+          <div class="empty-actions">
+            <label id="chooseImagesBtn" class="big-upload-btn" for="imageInputSecond">
+              Choose Images
+            </label>
+
+            <label id="choosePdfBtn" class="big-upload-btn secondary-upload-btn" for="pdfInputSecond">
+              Choose PDF
+            </label>
+          </div>
+
+          <small id="dropHint">Drag & Drop လုပ်လည်းရပါတယ်</small>
+        </div>
+      </div>
+
+      <div id="pdfViewer" class="pdf-viewer"></div>
+    </div>
+  </main>
+
+  <div id="panelBackdrop" class="panel-backdrop"></div>
+
+  <aside id="pagePanel" class="page-panel">
+    <div class="panel-header">
+      <div>
+        <h3>Page Manager</h3>
+        <p>Drag thumbnails to reorder pages</p>
+      </div>
+
+      <button id="closePanelBtn" type="button">×</button>
+    </div>
+
+    <div id="pageList" class="page-list"></div>
+
+    <div class="panel-footer">
+      <p>Image Mode မှာ page order ပြောင်းနိုင်ပါတယ်။ PDF download လုပ်ရင် ဒီ order အတိုင်းထွက်ပါမယ်။</p>
+    </div>
+  </aside>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loader"></div>
+    <p id="loadingText">Preparing...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
