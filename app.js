@@ -12,8 +12,6 @@ const dropZone = document.getElementById("dropZone");
 
 const topUploadBtn = document.getElementById("topUploadBtn");
 const topUploadText = document.getElementById("topUploadText");
-const menuToggleBtn = document.getElementById("menuToggleBtn");
-const menuToggleIcon = document.getElementById("menuToggleIcon");
 const modeSubtitle = document.getElementById("modeSubtitle");
 
 const imageModeBtn = document.getElementById("imageModeBtn");
@@ -65,6 +63,7 @@ let currentPdfFile = null;
 let currentPdfDoc = null;
 
 let lastScrollY = window.scrollY;
+let scrollBackDistance = 0;
 let hideMenuTimer = null;
 let sortableInstance = null;
 let badgeHideTimer = null;
@@ -314,22 +313,15 @@ function showPageBadgesForOneSecond() {
 }
 
 function updateMenuToggleIcon() {
-  if (!menuToggleIcon) return;
-  menuToggleIcon.textContent = document.body.classList.contains("menu-collapsed") ? "▾" : "▴";
+  // No toggle button. Menu is controlled by scroll direction.
 }
 
 function showMenu(autoHide = true) {
-  document.body.classList.remove("menu-collapsed");
-  updateMenuToggleIcon();
+  document.body.classList.remove("menu-hidden");
 
   if (hideMenuTimer) {
     clearTimeout(hideMenuTimer);
-  }
-
-  if (autoHide && isReaderActive() && !isPanelOpen()) {
-    hideMenuTimer = setTimeout(() => {
-      hideMenu();
-    }, 2200);
+    hideMenuTimer = null;
   }
 }
 
@@ -337,13 +329,12 @@ function hideMenu() {
   if (!isReaderActive()) return;
   if (isPanelOpen()) return;
 
-  document.body.classList.add("menu-collapsed");
-  updateMenuToggleIcon();
+  document.body.classList.add("menu-hidden");
 }
 
 function toggleMenu() {
-  if (document.body.classList.contains("menu-collapsed")) {
-    showMenu(true);
+  if (document.body.classList.contains("menu-hidden")) {
+    showMenu(false);
   } else {
     hideMenu();
   }
@@ -356,7 +347,7 @@ function activateReaderMode() {
 
 function deactivateReaderMode() {
   document.body.classList.remove("reader-active");
-  document.body.classList.remove("menu-collapsed");
+  document.body.classList.remove("menu-hidden");
   document.body.classList.remove("panel-open");
   updateMenuToggleIcon();
 
@@ -499,7 +490,8 @@ function scrollToPage(pageNumber) {
   if (!page) return;
 
   const pageTop = page.getBoundingClientRect().top + window.scrollY;
-  const menuHeight = readerMenu ? readerMenu.offsetHeight : 0;
+  const menuVisible = !document.body.classList.contains("menu-hidden");
+  const menuHeight = menuVisible && readerMenu ? readerMenu.offsetHeight : 0;
 
   window.scrollTo({
     top: Math.max(0, pageTop - menuHeight),
@@ -927,7 +919,6 @@ function openModeInput() {
 
 topUploadBtn.addEventListener("click", openModeInput);
 
-menuToggleBtn.addEventListener("click", toggleMenu);
 
 imageModeBtn.addEventListener("click", () => {
   setReaderMode("image", true);
@@ -1146,11 +1137,20 @@ window.addEventListener("scroll", () => {
   showPageBadgesForOneSecond();
 
   const currentScrollY = window.scrollY;
+  const diff = currentScrollY - lastScrollY;
 
-  if (currentScrollY > lastScrollY && currentScrollY > 80) {
+  // Swipe/scroll up through the document: hide the menu immediately.
+  // Scroll back down/up toward the top by 500px total: show it again.
+  if (diff > 4 && currentScrollY > 80) {
     hideMenu();
-  } else {
-    showMenu(true);
+    scrollBackDistance = 0;
+  } else if (diff < -4) {
+    scrollBackDistance += Math.abs(diff);
+
+    if (scrollBackDistance >= 500 || currentScrollY <= 20) {
+      showMenu(false);
+      scrollBackDistance = 0;
+    }
   }
 
   lastScrollY = currentScrollY;
@@ -1160,19 +1160,8 @@ window.addEventListener("resize", () => {
   updateReadingProgress();
 });
 
-window.addEventListener("mousemove", () => {
-  if (!isReaderActive()) return;
-  if (isPanelOpen()) return;
-
-  showMenu(true);
-});
-
-window.addEventListener("touchstart", () => {
-  if (!isReaderActive()) return;
-  if (isPanelOpen()) return;
-
-  showMenu(true);
-});
+// Menu is intentionally not shown by mouse move or tap.
+// It hides when reading forward, and shows only after scrolling back by 500px.
 
 window.addEventListener("keydown", (event) => {
   if (!isReaderActive()) return;
@@ -1189,7 +1178,6 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (readerMode === "rename") {
-    if (event.key === "Escape") hideMenu();
     if (event.key.toLowerCase() === "m") toggleMenu();
     return;
   }
