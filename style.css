@@ -4,6 +4,7 @@
 
 :root {
   --menu-height: 128px;
+  --collapsed-menu-height: 54px;
   --bg: #0b1020;
   --panel: rgba(15, 23, 42, 0.9);
   --line: rgba(255, 255, 255, 0.08);
@@ -41,10 +42,42 @@ body.fullscreen-mode {
   transition: transform 0.28s ease, opacity 0.28s ease;
 }
 
-body.menu-hidden:not(.panel-open) .reader-menu {
-  transform: translateY(-105%);
-  opacity: 0;
-  pointer-events: none;
+body.menu-collapsed {
+  --menu-height: var(--collapsed-menu-height);
+}
+
+body.menu-collapsed:not(.panel-open) .reader-menu {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.menu-collapsed .toolbar {
+  display: none;
+}
+
+body.menu-collapsed .topbar {
+  height: var(--collapsed-menu-height);
+  padding: 7px 14px;
+}
+
+body.menu-collapsed .logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
+body.menu-collapsed .brand h1 {
+  font-size: 15px;
+}
+
+body.menu-collapsed .brand p {
+  display: none;
+}
+
+body.menu-collapsed #topUploadBtn {
+  display: none;
 }
 
 .topbar {
@@ -103,6 +136,42 @@ body.menu-hidden:not(.panel-open) .reader-menu {
 
 body.reader-active #topUploadBtn {
   display: none;
+}
+
+.menu-toggle-btn {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(31, 41, 55, 0.92);
+  color: #ffffff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  line-height: 1;
+  flex: 0 0 auto;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.menu-toggle-btn:hover {
+  background: rgba(55, 65, 81, 0.96);
+  transform: translateY(-1px);
+}
+
+body.menu-collapsed .menu-toggle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+}
+
+body.menu-collapsed #menuToggleIcon {
+  transform: rotate(180deg);
+}
+
+#menuToggleIcon {
+  display: inline-block;
+  transition: transform 0.18s ease;
 }
 
 .upload-btn:hover,
@@ -813,5 +882,27 @@ body.panel-open .page-panel {
 
   .rename-control input {
     width: 64px;
+  }
+}
+
+
+/* Small collapsed menu keeps reader controls reachable without covering the page */
+body.menu-collapsed .reader-wrap {
+  padding-top: var(--collapsed-menu-height);
+}
+
+@media (max-width: 640px) {
+  body.menu-collapsed .topbar {
+    min-height: var(--collapsed-menu-height);
+    flex-direction: row;
+    align-items: center;
+  }
+
+  body.menu-collapsed .brand {
+    flex: 1;
+  }
+
+  body.menu-collapsed .upload-btn {
+    display: none;
   }
 }

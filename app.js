@@ -12,6 +12,8 @@ const dropZone = document.getElementById("dropZone");
 
 const topUploadBtn = document.getElementById("topUploadBtn");
 const topUploadText = document.getElementById("topUploadText");
+const menuToggleBtn = document.getElementById("menuToggleBtn");
+const menuToggleIcon = document.getElementById("menuToggleIcon");
 const modeSubtitle = document.getElementById("modeSubtitle");
 
 const imageModeBtn = document.getElementById("imageModeBtn");
@@ -311,8 +313,14 @@ function showPageBadgesForOneSecond() {
   }, 1000);
 }
 
+function updateMenuToggleIcon() {
+  if (!menuToggleIcon) return;
+  menuToggleIcon.textContent = document.body.classList.contains("menu-collapsed") ? "▾" : "▴";
+}
+
 function showMenu(autoHide = true) {
-  document.body.classList.remove("menu-hidden");
+  document.body.classList.remove("menu-collapsed");
+  updateMenuToggleIcon();
 
   if (hideMenuTimer) {
     clearTimeout(hideMenuTimer);
@@ -329,7 +337,16 @@ function hideMenu() {
   if (!isReaderActive()) return;
   if (isPanelOpen()) return;
 
-  document.body.classList.add("menu-hidden");
+  document.body.classList.add("menu-collapsed");
+  updateMenuToggleIcon();
+}
+
+function toggleMenu() {
+  if (document.body.classList.contains("menu-collapsed")) {
+    showMenu(true);
+  } else {
+    hideMenu();
+  }
 }
 
 function activateReaderMode() {
@@ -339,8 +356,9 @@ function activateReaderMode() {
 
 function deactivateReaderMode() {
   document.body.classList.remove("reader-active");
-  document.body.classList.remove("menu-hidden");
+  document.body.classList.remove("menu-collapsed");
   document.body.classList.remove("panel-open");
+  updateMenuToggleIcon();
 
   if (hideMenuTimer) {
     clearTimeout(hideMenuTimer);
@@ -421,6 +439,7 @@ function setReaderMode(mode, shouldClear = true) {
   }
 
   syncModeUI();
+updateMenuToggleIcon();
 }
 
 function clearReaderOnly(keepMode = true) {
@@ -448,6 +467,7 @@ function clearReaderOnly(keepMode = true) {
 
   if (keepMode) {
     syncModeUI();
+updateMenuToggleIcon();
   }
 }
 
@@ -479,8 +499,7 @@ function scrollToPage(pageNumber) {
   if (!page) return;
 
   const pageTop = page.getBoundingClientRect().top + window.scrollY;
-  const menuVisible = !document.body.classList.contains("menu-hidden");
-  const menuHeight = menuVisible ? readerMenu.offsetHeight : 0;
+  const menuHeight = readerMenu ? readerMenu.offsetHeight : 0;
 
   window.scrollTo({
     top: Math.max(0, pageTop - menuHeight),
@@ -679,6 +698,7 @@ function renderImages(files) {
   clearReaderOnly(false);
   readerMode = "image";
   syncModeUI();
+updateMenuToggleIcon();
 
   currentFiles = naturalSortFiles(imageFiles);
   renderAll(false);
@@ -760,6 +780,7 @@ function renderRenamePreview() {
   updateFileInfo();
   updateReadingProgress();
   syncModeUI();
+updateMenuToggleIcon();
 }
 
 function renderRenameImages(files) {
@@ -774,6 +795,7 @@ function renderRenameImages(files) {
   clearReaderOnly(false);
   readerMode = "rename";
   syncModeUI();
+updateMenuToggleIcon();
 
   currentFiles = naturalSortFiles(imageFiles);
   renderAll(false);
@@ -811,6 +833,7 @@ async function renderPdfFile(file) {
     clearReaderOnly(false);
     readerMode = "pdf";
     syncModeUI();
+updateMenuToggleIcon();
 
     // Important: create the render token AFTER clearReaderOnly(),
     // because clearReaderOnly() cancels previous PDF render jobs.
@@ -903,6 +926,8 @@ function openModeInput() {
 }
 
 topUploadBtn.addEventListener("click", openModeInput);
+
+menuToggleBtn.addEventListener("click", toggleMenu);
 
 imageModeBtn.addEventListener("click", () => {
   setReaderMode("image", true);
@@ -1165,7 +1190,7 @@ window.addEventListener("keydown", (event) => {
 
   if (readerMode === "rename") {
     if (event.key === "Escape") hideMenu();
-    if (event.key.toLowerCase() === "m") showMenu(true);
+    if (event.key.toLowerCase() === "m") toggleMenu();
     return;
   }
 
@@ -1200,7 +1225,7 @@ window.addEventListener("keydown", (event) => {
   }
 
   if (event.key.toLowerCase() === "m") {
-    showMenu(true);
+    toggleMenu();
   }
 
   if (event.key === "ArrowRight" || event.key === "PageDown") {
@@ -1410,3 +1435,4 @@ downloadPdfBtn.addEventListener("click", async () => {
 });
 
 syncModeUI();
+updateMenuToggleIcon();
